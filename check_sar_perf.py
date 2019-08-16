@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Copyright (c) 2010, Nick Anderson <nick@cmdln.org>
+# Copyright (c) 2012, Michael Friedrich <michael.friedrich@gmail.com>
 # All rights reserved.
 #
 # Modified 2012-07-11 by Michael Friedrich <michael.friedrich@univie.ac.at>
