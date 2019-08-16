@@ -1,6 +1,18 @@
 #!/usr/bin/env python
 # Copyright (c) 2010, Nick Anderson <nick@cmdln.org>
 # All rights reserved.
+#
+# Modified 2012-07-11 by Michael Friedrich <michael.friedrich@univie.ac.at>
+#
+# sar uses the locale time in order to format the output
+# previously, the plugin matched only
+#   04:13:43 PM  pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s    %vmeff
+#   04:13:44 PM  17664.00  12672.00     52.00      0.00  11394.00      0.00      0.00      0.00      0.00
+# which does not work with the default format
+#   16:13:16     pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s    %vmeff
+#   16:13:17     13952.00  73640.00     36.00      0.00  10970.00      0.00      0.00      0.00      0.00
+# since all systems should share the same, the command is instrumented using POSIX
+# time formatting, which makes it work on both ends again.
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -46,8 +58,12 @@ ERR_UNKN = 3
 class SarNRPE:
     '''Call sar and parse statistics returning in NRPE format'''
     def __init__(self, command, device=None):
+	# tell sar to use the posix time formatting to stay safe
+	command = 'LC_TIME="POSIX" '+command
         sar=Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
         (sout,serr) = sar.communicate()
+	### debug
+	#print sout
         if device == None:
             (columns, data) = self.SortOutput(sout)
         else:
@@ -60,10 +76,14 @@ class SarNRPE:
         data = sarout.split('\n')[-2].split()
         # remove 'Average:'
         data.pop(0)
+	### debug
+	#print data
         columns = sarout.split('\n')[-4].split()
-        # Remove Timestamp
+	# Remove Timestamp - 16:13:16
         columns.pop(0)
-        columns.pop(0)
+	# timestamp is posix, so no AM or PM
+	### debug
+	#print columns
         return (columns, data)
 
     def SortCombinedOutput(self, sarout, device):
@@ -98,13 +118,18 @@ class SarNRPE:
         self.stats = []
         # Create dictionary
         for i in range(len(columns)):
+	    # debug	
+	    # print columns[i], ": ", data[i]	
             # Remove first column if data contains only letters
             if i != 0 or not search.match(data[i]):
                 # Remove characters that cause issues (%/)
                 badchars=['%','/']
                 columns[i] = ''.join(j for j in columns[i] if j not in badchars)
                 string = "%s=%s" %(columns[i].strip('%/'), data[i].strip())
+		### debug
+		#print string
                 self.stats.append(string)
+		### debug
                 #print "Appended data: ", data[i]
 
 def CheckBin(program):
@@ -156,7 +181,9 @@ def Main(args):
         sys.exit(ERR_UNKN)
 
     # Output in NRPE format
-    print 'sar OK|', ' '.join(sar.stats)
+    print 'sar OK |', ' '.join(sar.stats)
+
+    sys.exit(ERR_OK)
 
 if __name__ == '__main__':
     Main(sys.argv)
