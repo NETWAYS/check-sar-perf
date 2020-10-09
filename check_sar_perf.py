@@ -187,4 +187,8 @@ def Main(args):
     sys.exit(ERR_OK)
 
 if __name__ == '__main__':
-    Main(sys.argv)
+    try:
+        Main(sys.argv)
+    except:
+        print 'Unexpected Error'
+        exit 3
