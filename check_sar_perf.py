@@ -42,15 +42,15 @@ from subprocess import *
 
 os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
 #Nagios return code level
-# 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly 
-# 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning" 
+# 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly
+# 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning"
 #                threshold or did not appear to be working properly
 # 2 - CRITICAL - The plugin detected that either the service was not running or it was above some "critical" threshold
-# 3 - UNKNOWN  - Invalid command line arguments were supplied to the plugin or low-level failures 
-#                internal to the plugin (such as unable to fork, or open a tcp socket) that prevent 
-#                it from performing the specified operation. Higher-level errors (such as name 
-#                resolution errors, socket timeouts, etc) are outside of the control of plugins and 
-#                should generally NOT be reported as UNKNOWN states. 
+# 3 - UNKNOWN  - Invalid command line arguments were supplied to the plugin or low-level failures
+#                internal to the plugin (such as unable to fork, or open a tcp socket) that prevent
+#                it from performing the specified operation. Higher-level errors (such as name
+#                resolution errors, socket timeouts, etc) are outside of the control of plugins and
+#                should generally NOT be reported as UNKNOWN states.
 ERR_OK = 0
 ERR_WARN = 1
 ERR_CRIT = 2
@@ -119,8 +119,8 @@ class SarNRPE:
         self.stats = []
         # Create dictionary
         for i in range(len(columns)):
-	    # debug	
-	    # print columns[i], ": ", data[i]	
+	    # debug
+	    # print columns[i], ": ", data[i]
             # Remove first column if data contains only letters
             if i != 0 or not search.match(data[i]):
                 # Remove characters that cause issues (%/)
@@ -151,9 +151,9 @@ def Main(args):
     if not CheckBin('sar'):
         print 'ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH']
         sys.exit(ERR_CRIT)
-  
+
     # Profiles may need to be modified for different versions of the sysstat package
-    # This would be a good candidate for a config file 
+    # This would be a good candidate for a config file
     myOpts = {}
     myOpts['pagestat'] = 'sar -B 1 1'
     myOpts['cpu'] = 'sar 1 1'
@@ -166,7 +166,7 @@ def Main(args):
     myOpts['task'] = 'sar -w 1 1'
     myOpts['kernel'] = 'sar -v 1 1'
     myOpts['disk'] = 'sar -d -p 1 1'
-    
+
     # If profile uses combined output you must pick one device to report on ie sda for disk
     if args[1] in myOpts:
         if args[1] == 'disk':
