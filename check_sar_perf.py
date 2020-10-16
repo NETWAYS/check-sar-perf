@@ -147,10 +147,10 @@ def Main(args):
     # Ensure a profile (aka myOpts) is selected
     if not len(args) > 1:
         print 'ERROR: no profile selected'
-        sys.exit(ERR_UNKN)
+        return(ERR_UNKN)
     if not CheckBin('sar'):
         print 'ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH']
-        sys.exit(ERR_CRIT)
+        return(ERR_CRIT)
 
     # Profiles may need to be modified for different versions of the sysstat package
     # This would be a good candidate for a config file
@@ -174,21 +174,23 @@ def Main(args):
                 sar = SarNRPE(myOpts[args[1]],args[2])
             else:
                 print 'ERROR: no device specified'
-                sys.exit(ERR_UNKN)
+                return(ERR_UNKN)
         else:
             sar = SarNRPE(myOpts[args[1]])
     else:
         print 'ERROR: option not defined'
-        sys.exit(ERR_UNKN)
+        return(ERR_UNKN)
 
     # Output in NRPE format
     print 'sar OK |', ' '.join(sar.stats)
 
-    sys.exit(ERR_OK)
+    return(ERR_OK)
 
 if __name__ == '__main__':
     try:
-        Main(sys.argv)
+        result = Main(sys.argv)
     except:
+        print sys.exc_info()
         print 'Unexpected Error'
-        exit 3
+        exit(3)
+    sys.exit(result)
