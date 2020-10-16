@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # Copyright (c) 2010, Nick Anderson <nick@cmdln.org>
 # Copyright (c) 2012, Michael Friedrich <michael.friedrich@gmail.com>
 # All rights reserved.
