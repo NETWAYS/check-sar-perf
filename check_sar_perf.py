@@ -64,7 +64,7 @@ and reports the results (including perfdata)
 
 def usage():
     print(description)
-    sys.exit(ERR_UNKN)
+    return ERR_UNKN
 
 class SarNRPE:
     '''Call sar and parse statistics returning in NRPE format'''
@@ -74,7 +74,7 @@ class SarNRPE:
         sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (sout,serr) = sar.communicate()
         ### debug
-        #print sout
+        #print(sout)
         if device == None:
             (columns, data) = self.SortOutput(sout)
         else:
@@ -88,13 +88,13 @@ class SarNRPE:
         # remove 'Average:'
         data.pop(0)
         ### debug
-        #print data
+        #print(data)
         columns = sarout.split('\n')[-4].split()
         # Remove Timestamp - 16:13:16
         columns.pop(0)
         # timestamp is posix, so no AM or PM
         ### debug
-        #print columns
+        #print(columns)
         return (columns, data)
 
     def SortCombinedOutput(self, sarout, device):
@@ -130,7 +130,7 @@ class SarNRPE:
         # Create dictionary
         for i in range(len(columns)):
         # debug
-        # print columns[i], ": ", data[i]
+        # print(columns[i], ": ", data[i])
             # Remove first column if data contains only letters
             if i != 0 or not search.match(data[i]):
                 # Remove characters that cause issues (%/)
@@ -138,10 +138,10 @@ class SarNRPE:
                 columns[i] = ''.join(j for j in columns[i] if j not in badchars)
                 string = "%s=%s" %(columns[i].strip('%/'), data[i].strip())
                 ### debug
-                #print string
+                #print(string)
                 self.stats.append(string)
                 ### debug
-                #print "Appended data: ", data[i]
+                #print("Appended data: ", data[i])
 
 def CheckBin(program):
     '''Ensure the program exists in the PATH'''
@@ -157,7 +157,7 @@ def Main(args):
     # Ensure a profile (aka myOpts) is selected
     if len(args) <= 1:
         print('ERROR: no profile selected')
-        usage()
+        return usage()
     if not CheckBin('sar'):
         print('ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH'])
         sys.exit(ERR_CRIT)
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     try:
         result = Main(sys.argv)
     except:
-        print sys.exc_info()
-        print 'Unexpected Error'
+        print(sys.exc_info())
+        print('Unexpected Error')
         exit(3)
     sys.exit(result)
