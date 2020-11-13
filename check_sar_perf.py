@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2010, Nick Anderson <nick@cmdln.org>
 # Copyright (c) 2012, Michael Friedrich <michael.friedrich@gmail.com>
 # All rights reserved.
@@ -37,34 +37,44 @@
 import os
 import sys
 import re
-from subprocess import *
+import subprocess
 
 
 os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
 #Nagios return code level
-# 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly 
-# 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning" 
+# 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly
+# 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning"
 #                threshold or did not appear to be working properly
 # 2 - CRITICAL - The plugin detected that either the service was not running or it was above some "critical" threshold
-# 3 - UNKNOWN  - Invalid command line arguments were supplied to the plugin or low-level failures 
-#                internal to the plugin (such as unable to fork, or open a tcp socket) that prevent 
-#                it from performing the specified operation. Higher-level errors (such as name 
-#                resolution errors, socket timeouts, etc) are outside of the control of plugins and 
-#                should generally NOT be reported as UNKNOWN states. 
+# 3 - UNKNOWN  - Invalid command line arguments were supplied to the plugin or low-level failures
+#                internal to the plugin (such as unable to fork, or open a tcp socket) that prevent
+#                it from performing the specified operation. Higher-level errors (such as name
+#                resolution errors, socket timeouts, etc) are outside of the control of plugins and
+#                should generally NOT be reported as UNKNOWN states.
 ERR_OK = 0
 ERR_WARN = 1
 ERR_CRIT = 2
 ERR_UNKN = 3
 
+description = """
+check_sar_perf.py
+This plugin reads output from sar (sysstat), checks it against thresholds
+and reports the results (including perfdata)
+"""
+
+def usage():
+    print(description)
+    sys.exit(ERR_UNKN)
+
 class SarNRPE:
     '''Call sar and parse statistics returning in NRPE format'''
     def __init__(self, command, device=None):
-	# tell sar to use the posix time formatting to stay safe
-	command = 'LC_TIME="POSIX" '+command
-        sar=Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
+        # tell sar to use the posix time formatting to stay safe
+        command = 'LC_TIME="POSIX" '+ command
+        sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (sout,serr) = sar.communicate()
-	### debug
-	#print sout
+        ### debug
+        #print sout
         if device == None:
             (columns, data) = self.SortOutput(sout)
         else:
@@ -77,14 +87,14 @@ class SarNRPE:
         data = sarout.split('\n')[-2].split()
         # remove 'Average:'
         data.pop(0)
-	### debug
-	#print data
+        ### debug
+        #print data
         columns = sarout.split('\n')[-4].split()
-	# Remove Timestamp - 16:13:16
+        # Remove Timestamp - 16:13:16
         columns.pop(0)
-	# timestamp is posix, so no AM or PM
-	### debug
-	#print columns
+        # timestamp is posix, so no AM or PM
+        ### debug
+        #print columns
         return (columns, data)
 
     def SortCombinedOutput(self, sarout, device):
@@ -119,18 +129,18 @@ class SarNRPE:
         self.stats = []
         # Create dictionary
         for i in range(len(columns)):
-	    # debug	
-	    # print columns[i], ": ", data[i]	
+        # debug
+        # print columns[i], ": ", data[i]
             # Remove first column if data contains only letters
             if i != 0 or not search.match(data[i]):
                 # Remove characters that cause issues (%/)
                 badchars=['%','/']
                 columns[i] = ''.join(j for j in columns[i] if j not in badchars)
                 string = "%s=%s" %(columns[i].strip('%/'), data[i].strip())
-		### debug
-		#print string
+                ### debug
+                #print string
                 self.stats.append(string)
-		### debug
+                ### debug
                 #print "Appended data: ", data[i]
 
 def CheckBin(program):
@@ -145,15 +155,15 @@ def CheckBin(program):
 
 def Main(args):
     # Ensure a profile (aka myOpts) is selected
-    if not len(args) > 1:
-        print 'ERROR: no profile selected'
-        sys.exit(ERR_UNKN)
+    if len(args) <= 1:
+        print('ERROR: no profile selected')
+        usage()
     if not CheckBin('sar'):
-        print 'ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH']
+        print('ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH'])
         sys.exit(ERR_CRIT)
-  
+
     # Profiles may need to be modified for different versions of the sysstat package
-    # This would be a good candidate for a config file 
+    # This would be a good candidate for a config file
     myOpts = {}
     myOpts['pagestat'] = 'sar -B 1 1'
     myOpts['cpu'] = 'sar 1 1'
@@ -166,23 +176,23 @@ def Main(args):
     myOpts['task'] = 'sar -w 1 1'
     myOpts['kernel'] = 'sar -v 1 1'
     myOpts['disk'] = 'sar -d -p 1 1'
-    
+
     # If profile uses combined output you must pick one device to report on ie sda for disk
     if args[1] in myOpts:
         if args[1] == 'disk':
             if len(args) > 2:
                 sar = SarNRPE(myOpts[args[1]],args[2])
             else:
-                print 'ERROR: no device specified'
+                print('ERROR: no device specified')
                 sys.exit(ERR_UNKN)
         else:
             sar = SarNRPE(myOpts[args[1]])
     else:
-        print 'ERROR: option not defined'
+        print('ERROR: option not defined')
         sys.exit(ERR_UNKN)
 
     # Output in NRPE format
-    print 'sar OK |', ' '.join(sar.stats)
+    print('sar OK |', ' '.join(sar.stats))
 
     sys.exit(ERR_OK)
 
@@ -190,5 +200,5 @@ if __name__ == '__main__':
     try:
         Main(sys.argv)
     except:
-        print 'Unexpected Error'
-        exit 3
+        print('Unexpected Error')
+        sys.exit(3)
