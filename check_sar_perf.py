@@ -194,11 +194,13 @@ def Main(args):
     # Output in NRPE format
     print('sar OK |', ' '.join(sar.stats))
 
-    sys.exit(ERR_OK)
+    return(ERR_OK)
 
 if __name__ == '__main__':
     try:
-        Main(sys.argv)
+        result = Main(sys.argv)
     except:
-        print('Unexpected Error')
-        sys.exit(3)
+        print sys.exc_info()
+        print 'Unexpected Error'
+        exit(3)
+    sys.exit(result)
