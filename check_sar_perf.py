@@ -56,14 +56,14 @@ ERR_WARN = 1
 ERR_CRIT = 2
 ERR_UNKN = 3
 
-description = """
+DESCRIPTION = """
 check_sar_perf.py
 This plugin reads output from sar (sysstat), checks it against thresholds
 and reports the results (including perfdata)
 """
 
 def usage():
-    print(description)
+    print(DESCRIPTION)
     return ERR_UNKN
 
 class SarNRPE:
@@ -72,58 +72,17 @@ class SarNRPE:
         # tell sar to use the posix time formatting to stay safe
         command = 'LC_TIME="POSIX" '+ command
         sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (sout,serr) = sar.communicate()
+        (sout,_) = sar.communicate()
         ### debug
         #print(sout)
-        if device == None:
-            (columns, data) = self.SortOutput(sout)
+        if device is None:
+            (columns, data) = sort_output(sout)
         else:
-            (columns, data) = self.SortCombinedOutput(sout, device)
+            (columns, data) = sort_combined_output(sout, device)
 
-        self.Formatter(columns, data)
+        self.formatter(columns, data)
 
-    def SortOutput(self, sarout):
-        '''Sort output of sar command, return column and data tuple'''
-        data = sarout.split('\n')[-2].split()
-        # remove 'Average:'
-        data.pop(0)
-        ### debug
-        #print(data)
-        columns = sarout.split('\n')[-4].split()
-        # Remove Timestamp - 16:13:16
-        columns.pop(0)
-        # timestamp is posix, so no AM or PM
-        ### debug
-        #print(columns)
-        return (columns, data)
-
-    def SortCombinedOutput(self, sarout, device):
-        '''Sorts column and data output from combined report and displays
-        only relevant information returns column and data tuple'''
-        find_columns = True
-        mycolumns = []
-        mydata = []
-        # Find the column titles
-        search = re.compile('^Average:')
-        for line in sarout.split('\n'):
-            if search.match(line):
-                if find_columns:
-                    mycolumns.append(line)
-                    find_columns = False
-                else:
-                    mydata.append(line)
-        # Find the only Average line with the device we are looking for
-        search = re.compile('^Average:\s.*%s\s.*' %device)
-        for line in mydata[:]:
-            if not search.match(line):
-                mydata.remove(line)
-        mycolumns = mycolumns[0].split()
-        mydata = mydata[0].split()
-        mycolumns.pop(0)
-        mydata.pop(0)
-        return (mycolumns,mydata)
-
-    def Formatter(self, columns, data):
+    def formatter(self, columns, data):
         '''Construct nrpe format performance data'''
         search = re.compile('^[a-zA-Z]+$')
         self.stats = []
@@ -143,64 +102,105 @@ class SarNRPE:
                 ### debug
                 #print("Appended data: ", data[i])
 
-def CheckBin(program):
+def check_bin(program):
     '''Ensure the program exists in the PATH'''
     for path in os.environ.get('PATH', '').split(':'):
         if os.path.exists(os.path.join(path, program)) and \
            not os.path.isdir(os.path.join(path, program)):
-               return os.path.join(path, program)
+            return os.path.join(path, program)
                #return True
     return False
 
+def sort_output(sarout):
+    '''Sort output of sar command, return column and data tuple'''
+    data = sarout.split('\n')[-2].split()
+    # remove 'Average:'
+    data.pop(0)
+    ### debug
+    #print(data)
+    columns = sarout.split('\n')[-4].split()
+    # Remove Timestamp - 16:13:16
+    columns.pop(0)
+    # timestamp is posix, so no AM or PM
+    ### debug
+    #print(columns)
+    return (columns, data)
 
-def Main(args):
-    # Ensure a profile (aka myOpts) is selected
+def sort_combined_output(sarout, device):
+    '''Sorts column and data output from combined report and displays
+    only relevant information returns column and data tuple'''
+    find_columns = True
+    mycolumns = []
+    mydata = []
+    # Find the column titles
+    search = re.compile('^Average:')
+    for line in sarout.split('\n'):
+        if search.match(line):
+            if find_columns:
+                mycolumns.append(line)
+                find_columns = False
+            else:
+                mydata.append(line)
+    # Find the only Average line with the device we are looking for
+    search = re.compile(r'^Average:\s.*%s\s.*' %device)
+    for line in mydata[:]:
+        if not search.match(line):
+            mydata.remove(line)
+    mycolumns = mycolumns[0].split()
+    mydata = mydata[0].split()
+    mycolumns.pop(0)
+    mydata.pop(0)
+    return (mycolumns,mydata)
+
+
+def main(args):
+    # Ensure a profile (aka my_opts) is selected
     if len(args) <= 1:
         print('ERROR: no profile selected')
         return usage()
-    if not CheckBin('sar'):
+    if not check_bin('sar'):
         print('ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH'])
         sys.exit(ERR_CRIT)
 
     # Profiles may need to be modified for different versions of the sysstat package
     # This would be a good candidate for a config file
-    myOpts = {}
-    myOpts['pagestat'] = 'sar -B 1 1'
-    myOpts['cpu'] = 'sar 1 1'
-    myOpts['memory_util'] = 'sar -r 1 1'
-    myOpts['memory_stat'] = 'sar -R 1 1'
-    myOpts['io_transfer'] = 'sar -b 1 1'
-    myOpts['queueln_load'] = 'sar -q 1 1'
-    myOpts['swap_util'] = 'sar -S 1 1'
-    myOpts['swap_stat'] = 'sar -W 1 1'
-    myOpts['task'] = 'sar -w 1 1'
-    myOpts['kernel'] = 'sar -v 1 1'
-    myOpts['disk'] = 'sar -d -p 1 1'
+    my_opts = {}
+    my_opts['pagestat'] = 'sar -B 1 1'
+    my_opts['cpu'] = 'sar 1 1'
+    my_opts['memory_util'] = 'sar -r 1 1'
+    my_opts['memory_stat'] = 'sar -R 1 1'
+    my_opts['io_transfer'] = 'sar -b 1 1'
+    my_opts['queueln_load'] = 'sar -q 1 1'
+    my_opts['swap_util'] = 'sar -S 1 1'
+    my_opts['swap_stat'] = 'sar -W 1 1'
+    my_opts['task'] = 'sar -w 1 1'
+    my_opts['kernel'] = 'sar -v 1 1'
+    my_opts['disk'] = 'sar -d -p 1 1'
 
     # If profile uses combined output you must pick one device to report on ie sda for disk
-    if args[1] in myOpts:
+    if args[1] in my_opts:
         if args[1] == 'disk':
             if len(args) > 2:
-                sar = SarNRPE(myOpts[args[1]],args[2])
+                sar = SarNRPE(my_opts[args[1]],args[2])
             else:
                 print('ERROR: no device specified')
                 sys.exit(ERR_UNKN)
         else:
-            sar = SarNRPE(myOpts[args[1]])
+            sar = SarNRPE(my_opts[args[1]])
     else:
         print('ERROR: option not defined')
-        sys.exit(ERR_UNKN)
+        return ERR_UNKN
 
     # Output in NRPE format
     print('sar OK |', ' '.join(sar.stats))
 
-    return(ERR_OK)
+    return ERR_OK
 
 if __name__ == '__main__':
     try:
-        result = Main(sys.argv)
+        Result = main(sys.argv)
     except:
         print(sys.exc_info())
         print('Unexpected Error')
-        exit(3)
-    sys.exit(result)
+        sys.exit(3)
+    sys.exit(Result)
