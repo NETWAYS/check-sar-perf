@@ -176,7 +176,7 @@ def main(args):
         return usage()
     if not check_bin('sar'):
         print('ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH'])
-        sys.exit(ERR_CRIT)
+        return ERR_CRIT
 
     # Profiles may need to be modified for different versions of the sysstat package
     # This would be a good candidate for a config file
@@ -200,7 +200,7 @@ def main(args):
                 sar = SarNRPE(my_opts[args[1]],args[2])
             else:
                 print('ERROR: no device specified')
-                sys.exit(ERR_UNKN)
+                return ERR_UNKN
         else:
             sar = SarNRPE(my_opts[args[1]])
     else:
