@@ -38,6 +38,7 @@ import os
 import sys
 import re
 import subprocess
+import traceback
 
 
 os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
@@ -73,8 +74,10 @@ class SarNRPE:
         command = 'LC_TIME="POSIX" '+ command
         sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (sout,_) = sar.communicate()
+        sout = sout.decode()
         ### debug
         #print(sout)
+        #print("Type: " + str(type(sout)))
         if device is None:
             (columns, data) = sort_output(sout)
         else:
@@ -113,6 +116,7 @@ def check_bin(program):
 
 def sort_output(sarout):
     '''Sort output of sar command, return column and data tuple'''
+    #print(sarout)
     data = sarout.split('\n')[-2].split()
     # remove 'Average:'
     data.pop(0)
@@ -200,6 +204,7 @@ if __name__ == '__main__':
     try:
         Result = main(sys.argv)
     except:
+        traceback.print_tb()
         print(sys.exc_info())
         print('Unexpected Error')
         sys.exit(3)
