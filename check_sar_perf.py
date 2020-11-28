@@ -94,15 +94,15 @@ class SarNRPE:
         search = re.compile('^[a-zA-Z]+$')
         self.stats = []
         # Create dictionary
-        for i in range(len(columns)):
+        for (idx, element) in enumerate(columns):
         # debug
         # print(columns[i], ": ", data[i])
             # Remove first column if data contains only letters
-            if i != 0 or not search.match(data[i]):
+            if idx != 0 or not search.match(data[idx]):
                 # Remove characters that cause issues (%/)
                 badchars=['%','/']
-                columns[i] = ''.join(j for j in columns[i] if j not in badchars)
-                string = "%s=%s" %(columns[i].strip('%/'), data[i].strip())
+                columns[idx] = ''.join(j for j in element if j not in badchars)
+                string = "%s=%s" %(element.strip('%/'), data[idx].strip())
                 ### debug
                 #print(string)
                 self.stats.append(string)
