@@ -219,5 +219,5 @@ if __name__ == '__main__':
         traceback.print_tb()
         print(sys.exc_info())
         print('Unexpected Error')
-        sys.exit(3)
+        sys.exit(ERR_UNKN)
     sys.exit(Result)
