@@ -157,7 +157,8 @@ def sort_combined_output(sarout, device):
             else:
                 mydata.append(line)
     # Find the only Average line with the device we are looking for
-    search = re.compile(r'^Average:\s.*%s\s.*' %device)
+    search_string = f'^Average:\\s+.*{device}\\s*.*'
+    search = re.compile(search_string)
     for line in mydata[:]:
         if not search.match(line):
             mydata.remove(line)
