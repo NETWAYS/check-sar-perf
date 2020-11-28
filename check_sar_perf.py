@@ -214,8 +214,8 @@ def main(args):
 if __name__ == '__main__':
     try:
         Result = main(sys.argv)
-    except:
-        traceback.print_tb()
+    except Exception:
+        traceback.print_exc()
         print(sys.exc_info())
         print('Unexpected Error')
         sys.exit(ERR_UNKN)
