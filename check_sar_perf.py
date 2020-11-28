@@ -184,7 +184,6 @@ def main(args):
     my_opts['pagestat'] = 'sar -B 1 1'
     my_opts['cpu'] = 'sar 1 1'
     my_opts['memory_util'] = 'sar -r 1 1'
-    my_opts['memory_stat'] = 'sar -R 1 1'
     my_opts['io_transfer'] = 'sar -b 1 1'
     my_opts['queueln_load'] = 'sar -q 1 1'
     my_opts['swap_util'] = 'sar -S 1 1'
