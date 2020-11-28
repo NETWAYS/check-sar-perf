@@ -68,7 +68,9 @@ def usage():
     return ERR_UNKN
 
 class SarNRPE:
-    '''Call sar and parse statistics returning in NRPE format'''
+    '''
+    Call sar and parse statistics returning in NRPE format
+    '''
     def __init__(self, command, device=None):
         # tell sar to use the posix time formatting to stay safe
         command = 'LC_TIME="POSIX" '+ command
@@ -86,7 +88,9 @@ class SarNRPE:
         self.formatter(columns, data)
 
     def formatter(self, columns, data):
-        '''Construct nrpe format performance data'''
+        '''
+        Construct nrpe format performance data
+        '''
         search = re.compile('^[a-zA-Z]+$')
         self.stats = []
         # Create dictionary
@@ -106,7 +110,9 @@ class SarNRPE:
                 #print("Appended data: ", data[i])
 
 def check_bin(program):
-    '''Ensure the program exists in the PATH'''
+    '''
+    Ensure the program exists in the PATH
+    '''
     for path in os.environ.get('PATH', '').split(':'):
         if os.path.exists(os.path.join(path, program)) and \
            not os.path.isdir(os.path.join(path, program)):
@@ -115,7 +121,9 @@ def check_bin(program):
     return False
 
 def sort_output(sarout):
-    '''Sort output of sar command, return column and data tuple'''
+    '''
+    Sort output of sar command, return column and data tuple
+    '''
     #print(sarout)
     data = sarout.split('\n')[-2].split()
     # remove 'Average:'
@@ -131,8 +139,11 @@ def sort_output(sarout):
     return (columns, data)
 
 def sort_combined_output(sarout, device):
-    '''Sorts column and data output from combined report and displays
-    only relevant information returns column and data tuple'''
+    '''
+    Sorts column and data output from combined report and displays
+    only relevant information returns column and data tuple
+    '''
+
     find_columns = True
     mycolumns = []
     mydata = []
