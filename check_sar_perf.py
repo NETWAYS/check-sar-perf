@@ -65,6 +65,9 @@ and reports the results (including perfdata)
 
 
 def usage():
+    '''
+    Just print usage
+    '''
     print(DESCRIPTION)
     return ERR_UNKN
 
@@ -76,9 +79,9 @@ class SarNRPE:
     def __init__(self, command, device=None):
         # tell sar to use the posix time formatting to stay safe
         command = 'LC_TIME="POSIX" ' + command
-        sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (sout, _) = sar.communicate()
-        sout = sout.decode()
+        with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as sar:
+            (sout, _) = sar.communicate()
+            sout = sout.decode()
         # == debug
         # print(sout)
         # print("Type: " + str(type(sout)))
@@ -104,7 +107,7 @@ class SarNRPE:
                 # Remove characters that cause issues (%/)
                 badchars = ['%', '/']
                 columns[idx] = ''.join(j for j in element if j not in badchars)
-                string = "%s=%s" % (element.strip('%/'), data[idx].strip())
+                string = element.strip('%/') + "=" + data[idx].strip()
                 # ==debug
                 # print(string)
                 self.stats.append(string)
@@ -174,12 +177,16 @@ def sort_combined_output(sarout, device):
 
 
 def main(args):
+    """
+    Main function, execute checks, fetch data and so on.
+    Maybe just integrate this in the starter function
+    """
     # Ensure a profile (aka my_opts) is selected
     if len(args) <= 1:
         print('ERROR: no profile selected')
         return usage()
     if not check_bin('sar'):
-        print('ERROR: sar not found on PATH (%s), install sysstat' % os.environ['PATH'])
+        print(f"ERROR: sar not found on PATH ({os.environ['PATH']}), install sysstat")
         return ERR_CRIT
 
     # Profiles may need to be modified for different versions of the sysstat package
@@ -218,10 +225,10 @@ def main(args):
 
 if __name__ == '__main__':
     try:
-        Result = main(sys.argv)
+        result = main(sys.argv)
     except Exception:
         traceback.print_exc()
         print(sys.exc_info())
         print('Unexpected Error')
         sys.exit(ERR_UNKN)
-    sys.exit(Result)
+    sys.exit(result)
