@@ -42,7 +42,7 @@ import traceback
 
 
 os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
-#Nagios return code level
+# Nagios return code level
 # 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly
 # 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning"
 #                threshold or did not appear to be working properly
@@ -63,9 +63,11 @@ This plugin reads output from sar (sysstat), checks it against thresholds
 and reports the results (including perfdata)
 """
 
+
 def usage():
     print(DESCRIPTION)
     return ERR_UNKN
+
 
 class SarNRPE:
     '''
@@ -73,13 +75,13 @@ class SarNRPE:
     '''
     def __init__(self, command, device=None):
         # tell sar to use the posix time formatting to stay safe
-        command = 'LC_TIME="POSIX" '+ command
+        command = 'LC_TIME="POSIX" ' + command
         sar = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (sout,_) = sar.communicate()
+        (sout, _) = sar.communicate()
         sout = sout.decode()
-        ### debug
-        #print(sout)
-        #print("Type: " + str(type(sout)))
+        # == debug
+        # print(sout)
+        # print("Type: " + str(type(sout)))
         if device is None:
             (columns, data) = sort_output(sout)
         else:
@@ -95,19 +97,20 @@ class SarNRPE:
         self.stats = []
         # Create dictionary
         for (idx, element) in enumerate(columns):
-        # debug
-        # print(columns[i], ": ", data[i])
+            # debug
+            # print(columns[i], ": ", data[i])
             # Remove first column if data contains only letters
             if idx != 0 or not search.match(data[idx]):
                 # Remove characters that cause issues (%/)
-                badchars=['%','/']
+                badchars = ['%', '/']
                 columns[idx] = ''.join(j for j in element if j not in badchars)
-                string = "%s=%s" %(element.strip('%/'), data[idx].strip())
-                ### debug
-                #print(string)
+                string = "%s=%s" % (element.strip('%/'), data[idx].strip())
+                # ==debug
+                # print(string)
                 self.stats.append(string)
-                ### debug
-                #print("Appended data: ", data[i])
+                # debug
+                # print("Appended data: ", data[i])
+
 
 def check_bin(program):
     '''
@@ -117,26 +120,27 @@ def check_bin(program):
         if os.path.exists(os.path.join(path, program)) and \
            not os.path.isdir(os.path.join(path, program)):
             return os.path.join(path, program)
-               #return True
     return False
+
 
 def sort_output(sarout):
     '''
     Sort output of sar command, return column and data tuple
     '''
-    #print(sarout)
+    # print(sarout)
     data = sarout.split('\n')[-2].split()
     # remove 'Average:'
     data.pop(0)
-    ### debug
-    #print(data)
+    # debug
+    # print(data)
     columns = sarout.split('\n')[-4].split()
     # Remove Timestamp - 16:13:16
     columns.pop(0)
     # timestamp is posix, so no AM or PM
-    ### debug
-    #print(columns)
+    # debug
+    # print(columns)
     return (columns, data)
+
 
 def sort_combined_output(sarout, device):
     '''
@@ -166,7 +170,7 @@ def sort_combined_output(sarout, device):
     mydata = mydata[0].split()
     mycolumns.pop(0)
     mydata.pop(0)
-    return (mycolumns,mydata)
+    return (mycolumns, mydata)
 
 
 def main(args):
@@ -175,7 +179,7 @@ def main(args):
         print('ERROR: no profile selected')
         return usage()
     if not check_bin('sar'):
-        print('ERROR: sar not found on PATH (%s), install sysstat' %os.environ['PATH'])
+        print('ERROR: sar not found on PATH (%s), install sysstat' % os.environ['PATH'])
         return ERR_CRIT
 
     # Profiles may need to be modified for different versions of the sysstat package
@@ -196,7 +200,7 @@ def main(args):
     if args[1] in my_opts:
         if args[1] == 'disk':
             if len(args) > 2:
-                sar = SarNRPE(my_opts[args[1]],args[2])
+                sar = SarNRPE(my_opts[args[1]], args[2])
             else:
                 print('ERROR: no device specified')
                 return ERR_UNKN
@@ -210,6 +214,7 @@ def main(args):
     print('sar OK |', ' '.join(sar.stats))
 
     return ERR_OK
+
 
 if __name__ == '__main__':
     try:
