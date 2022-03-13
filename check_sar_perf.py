@@ -225,10 +225,9 @@ def main(args):
 
 if __name__ == '__main__':
     try:
-        result = main(sys.argv)
+        sys.exit(main(sys.argv))
     except Exception:
         traceback.print_exc()
         print(sys.exc_info())
         print('Unexpected Error')
         sys.exit(ERR_UNKN)
-    sys.exit(result)
