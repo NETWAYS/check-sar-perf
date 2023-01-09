@@ -1,6 +1,9 @@
 check_sar_perf
 ==============
 
+This is a fork of [nickanderson/check-sar-perf](https://github.com/nickanderson/check-sar-perf)
+with some improvements and updates.
+
 This plug-in was written to get performance data from sar.
 Can be integrated into Icinga with using the agent. v2.11
 provides a CheckCommand definition inside the [ITL](https://icinga.com/docs/icinga2/latest/doc/10-icinga-template-library/).
