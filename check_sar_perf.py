@@ -41,10 +41,9 @@ try:
     import sys
     import re
     import subprocess
-    import traceback
 # pylint: disable=broad-exception-caught
-except Exception as e:
-    print(f"UNKNOWN: Failure during import. {e}")
+except Exception as import_error:
+    print(f"UNKNOWN: Failure during import. {import_error}")
     # pylint: disable=consider-using-sys-exit
     exit(3)
 
@@ -110,6 +109,8 @@ class SarNRPE:
     '''
     def __init__(self, command, device=None):
         # tell sar to use the posix time formatting to stay safe
+        self.stats = []
+
         command = 'LC_TIME="POSIX" ' + command
         with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as sar:
             (sout, _) = sar.communicate()
@@ -122,14 +123,14 @@ class SarNRPE:
         else:
             (columns, data) = sort_combined_output(sout, device)
 
-        self.formatter(columns, data)
+        if data:
+            self.formatter(columns, data)
 
     def formatter(self, columns, data):
         '''
         Construct nrpe format performance data
         '''
         search = re.compile('^[a-zA-Z]+$')
-        self.stats = []
         # Create dictionary
         for (idx, element) in enumerate(columns):
             # debug
@@ -182,30 +183,26 @@ def sort_combined_output(sarout, device):
     Sorts column and data output from combined report and displays
     only relevant information returns column and data tuple
     '''
+    lines = [l for l in sarout.split('\n') if l.startswith('Average:')]
+    columns = lines[0]
+    data = lines[1:]
 
-    find_columns = True
-    mycolumns = []
-    mydata = []
-    # Find the column titles
-    search = re.compile('^Average:')
-    for line in sarout.split('\n'):
-        if search.match(line):
-            if find_columns:
-                mycolumns.append(line)
-                find_columns = False
-            else:
-                mydata.append(line)
     # Find the only Average line with the device we are looking for
-    search_string = f'^Average:\\s+.*{device}\\s*.*'
-    search = re.compile(search_string)
-    for line in mydata[:]:
-        if not search.match(line):
-            mydata.remove(line)
-    mycolumns = mycolumns[0].split()
-    mydata = mydata[0].split()
-    mycolumns.pop(0)
-    mydata.pop(0)
-    return (mycolumns, mydata)
+    search = re.compile(f'^Average:\\s+.*{device}\\s*.*')
+    lines_dev = [l for l in data if search.match(l)]
+
+    # Initialize return data
+    ret_column= []
+    ret_data= []
+
+    if columns:
+        ret_column = columns.split()
+        ret_column.pop(0)
+    if lines_dev:
+        ret_data = lines_dev[0].split()
+        ret_data.pop(0)
+
+    return (ret_column, ret_data)
 
 
 def main(args):
@@ -224,19 +221,23 @@ def main(args):
             sar = SarNRPE(PROFILES[args.profile], args.device)
         else:
             sar = SarNRPE(PROFILES[args.profile])
-    except Exception as e:
-        print(f"UNKNOWN: Error running sar. {e}")
+    except Exception as sar_error:
+        print(f"UNKNOWN: Error running sar. {sar_error}")
         return ERR_UNKN
 
     # Output in NRPE format
-    print('sar OK |', ' '.join(sar.stats))
-    return ERR_OK
+    if sar.stats:
+        print('OK: sar |', ' '.join(sar.stats))
+        return ERR_OK
+
+    print("UNKNOWN: Could not determine sar perfdata.")
+    return ERR_UNKN
 
 
 if __name__ == '__main__': # pragma: no cover
     try:
         ARGS = commandline(sys.argv[1:])
         sys.exit(main(ARGS))
-    except Exception as e:
-        print(f"UNKNOWN: Error running main(). {e}")
+    except Exception as main_error:
+        print(f"UNKNOWN: Error running main(). {main_error}")
         sys.exit(ERR_UNKN)

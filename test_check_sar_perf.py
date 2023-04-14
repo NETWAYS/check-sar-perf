@@ -72,6 +72,13 @@ class SarPerfTest(unittest.TestCase):
         actual = sort_combined_output(fixture_sar_disk, 'sda')
         self.assertEqual(actual, expected)
 
+    def test_sort_combined_output_missing_dev(self):
+
+        expected = (['DEV', 'tps', 'rkB/s', 'wkB/s', 'areq-sz', 'aqu-sz', 'await', 'svctm', '%util'],
+                    [])
+
+        actual = sort_combined_output(fixture_sar_disk, 'sdb')
+        self.assertEqual(actual, expected)
 
 class SarNRPETest(unittest.TestCase):
 
