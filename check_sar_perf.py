@@ -34,14 +34,20 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import sys
-import re
-import subprocess
-import traceback
+# Safe import for adding sys.exit
+try:
+    import argparse
+    import os
+    import sys
+    import re
+    import subprocess
+    import traceback
+# pylint: disable=broad-exception-caught
+except Exception as e:
+    print(f"UNKNOWN: Failure during import. {e}")
+    # pylint: disable=consider-using-sys-exit
+    exit(3)
 
-
-os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
 # Nagios return code level
 # 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly
 # 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning"
@@ -57,19 +63,45 @@ ERR_WARN = 1
 ERR_CRIT = 2
 ERR_UNKN = 3
 
-DESCRIPTION = """
-check_sar_perf.py
-This plugin reads output from sar (sysstat), checks it against thresholds
-and reports the results (including perfdata)
-"""
+__version__ = '0.1.0'
 
 
-def usage():
-    '''
-    Just print usage
-    '''
-    print(DESCRIPTION)
-    return ERR_UNKN
+# Profiles may need to be modified for different versions of the sysstat package
+# This would be a good candidate for a config file
+PROFILES = {
+    'pagestat': 'sar -B 1 1',
+    'cpu': 'sar 1 1',
+    'memory_util': 'sar -r 1 1',
+    'io_transfer': 'sar -b 1 1',
+    'queueln_load': 'sar -q 1 1',
+    'swap_util': 'sar -S 1 1',
+    'swap_stat': 'sar -W 1 1',
+    'task': 'sar -w 1 1',
+    'kernel': 'sar -v 1 1',
+    'disk': 'sar -d -p 1 1',
+}
+
+def commandline(arguments):
+    """
+    Command Line Interface Function for easier testing
+    """
+    parser = argparse.ArgumentParser(description="This plugin reads output from sar (sysstat), checks it against thresholds and reports the results (including perfdata)")
+
+    parser.add_argument('-V', '--version',
+                        action='version',
+                        version='%(prog)s v' + __version__)
+
+    parser.add_argument('profile',
+                        choices=PROFILES.keys(),
+                        type=str,
+                        help='sar Profile to execute for the check.',
+                        nargs=1)
+
+    parser.add_argument('-d', '--device',
+                        help='Name of the device if the disk profile is selected.',
+                        required='disk' in arguments)
+
+    return parser.parse_args(arguments)
 
 
 class SarNRPE:
@@ -178,56 +210,33 @@ def sort_combined_output(sarout, device):
 
 def main(args):
     """
-    Main function, execute checks, fetch data and so on.
-    Maybe just integrate this in the starter function
+    Main function
     """
-    # Ensure a profile (aka my_opts) is selected
-    if len(args) <= 1:
-        print('ERROR: no profile selected')
-        return usage()
     if not check_bin('sar'):
-        print(f"ERROR: sar not found on PATH ({os.environ['PATH']}), install sysstat")
+        print(f"ERROR: sar not found in $PATH ({os.environ['PATH']}), please install sysstat.")
         return ERR_CRIT
 
-    # Profiles may need to be modified for different versions of the sysstat package
-    # This would be a good candidate for a config file
-    my_opts = {}
-    my_opts['pagestat'] = 'sar -B 1 1'
-    my_opts['cpu'] = 'sar 1 1'
-    my_opts['memory_util'] = 'sar -r 1 1'
-    my_opts['io_transfer'] = 'sar -b 1 1'
-    my_opts['queueln_load'] = 'sar -q 1 1'
-    my_opts['swap_util'] = 'sar -S 1 1'
-    my_opts['swap_stat'] = 'sar -W 1 1'
-    my_opts['task'] = 'sar -w 1 1'
-    my_opts['kernel'] = 'sar -v 1 1'
-    my_opts['disk'] = 'sar -d -p 1 1'
+    # Positional args are a list
+    args.profile = args.profile[0]
 
-    # If profile uses combined output you must pick one device to report on ie sda for disk
-    if args[1] in my_opts:
-        if args[1] == 'disk':
-            if len(args) > 2:
-                sar = SarNRPE(my_opts[args[1]], args[2])
-            else:
-                print('ERROR: no device specified')
-                return ERR_UNKN
+    try:
+        if args.profile == 'disk':
+            sar = SarNRPE(PROFILES[args.profile], args.device)
         else:
-            sar = SarNRPE(my_opts[args[1]])
-    else:
-        print('ERROR: option not defined')
+            sar = SarNRPE(PROFILES[args.profile])
+    except Exception as e:
+        print(f"UNKNOWN: Error running sar. {e}")
         return ERR_UNKN
 
     # Output in NRPE format
     print('sar OK |', ' '.join(sar.stats))
-
     return ERR_OK
 
 
 if __name__ == '__main__': # pragma: no cover
     try:
-        sys.exit(main(sys.argv))
-    except Exception:
-        traceback.print_exc()
-        print(sys.exc_info())
-        print('Unexpected Error')
+        ARGS = commandline(sys.argv[1:])
+        sys.exit(main(ARGS))
+    except Exception as e:
+        print(f"UNKNOWN: Error running main(). {e}")
         sys.exit(ERR_UNKN)

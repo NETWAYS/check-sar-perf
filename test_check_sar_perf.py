@@ -7,6 +7,7 @@ import sys
 sys.path.append('..')
 
 from check_sar_perf import check_bin
+from check_sar_perf import commandline
 from check_sar_perf import sort_output,sort_combined_output
 from check_sar_perf import SarNRPE
 
@@ -32,7 +33,24 @@ Average:    root      0.00      0.00      0.00      0.00      0.00      0.00    
 Average:    swap      0.00      0.00      0.00      0.00      0.00      0.00      0.00      0.00
 """
 
+fixture_sar_disk_sar12 = """
+# Linux 5.10.0-20-amd64 (debian)        04/14/23        _x86_64_	(2 CPU)
+
+# 11:04:30          tps     rkB/s     wkB/s     dkB/s   areq-sz    aqu-sz     await     %util DEV
+# 11:04:31         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
+# Average:         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
+"""
+
 class SarPerfTest(unittest.TestCase):
+
+    def test_commandline(self):
+        args = ['cpu']
+        actual = commandline(args)
+        self.assertEqual(actual.profile, ['cpu'])
+
+        args = ['disk', '--device', 'foo']
+        actual = commandline(args)
+        self.assertEqual(actual.profile, ['disk'])
 
     def test_check_bin(self):
         actual = check_bin("foobar")
