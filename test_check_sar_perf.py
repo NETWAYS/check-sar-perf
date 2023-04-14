@@ -34,11 +34,11 @@ Average:    swap      0.00      0.00      0.00      0.00      0.00      0.00    
 """
 
 fixture_sar_disk_sar12 = """
-# Linux 5.10.0-20-amd64 (debian)        04/14/23        _x86_64_	(2 CPU)
+Linux 5.10.0-20-amd64 (debian)        04/14/23        _x86_64_	(2 CPU)
 
-# 11:04:30          tps     rkB/s     wkB/s     dkB/s   areq-sz    aqu-sz     await     %util DEV
-# 11:04:31         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
-# Average:         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
+11:04:30          tps     rkB/s     wkB/s     dkB/s   areq-sz    aqu-sz     await     %util DEV
+11:04:31         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
+Average:         1.00      0.00      4.00      0.00      4.00      0.00      0.00      0.40 sda
 """
 
 class SarPerfTest(unittest.TestCase):
@@ -64,12 +64,25 @@ class SarPerfTest(unittest.TestCase):
         actual = sort_output(fixture_sar_cpu)
         self.assertEqual(actual, expected)
 
+    def test_sort_output_error_handling(self):
+        expected = ([], [])
+        actual = sort_output("foo")
+        self.assertEqual(actual, expected)
+
     def test_sort_combined_output(self):
 
         expected = (['DEV', 'tps', 'rkB/s', 'wkB/s', 'areq-sz', 'aqu-sz', 'await', 'svctm', '%util'],
                     ['sda', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '0.00'])
 
         actual = sort_combined_output(fixture_sar_disk, 'sda')
+        self.assertEqual(actual, expected)
+
+    def test_sort_combined_output_sar12(self):
+
+        expected = (['tps', 'rkB/s', 'wkB/s', 'dkB/s', 'areq-sz', 'aqu-sz', 'await', '%util', 'DEV'],
+                    ['1.00', '0.00', '4.00', '0.00', '4.00', '0.00', '0.00', '0.40', 'sda'])
+
+        actual = sort_combined_output(fixture_sar_disk_sar12, 'sda')
         self.assertEqual(actual, expected)
 
     def test_sort_combined_output_missing_dev(self):

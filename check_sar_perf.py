@@ -42,7 +42,7 @@ try:
     import re
     import subprocess
 # pylint: disable=broad-exception-caught
-except Exception as import_error:
+except Exception as import_error: # pragma: no cover
     print(f"UNKNOWN: Failure during import. {import_error}")
     # pylint: disable=consider-using-sys-exit
     exit(3)
@@ -115,13 +115,11 @@ class SarNRPE:
         with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as sar:
             (sout, _) = sar.communicate()
             sout = sout.decode()
-        # == debug
-        # print(sout)
-        # print("Type: " + str(type(sout)))
-        if device is None:
-            (columns, data) = sort_output(sout)
-        else:
+
+        if device:
             (columns, data) = sort_combined_output(sout, device)
+        else:
+            (columns, data) = sort_output(sout)
 
         if data:
             self.formatter(columns, data)
@@ -163,19 +161,30 @@ def sort_output(sarout):
     '''
     Sort output of sar command, return column and data tuple
     '''
-    # print(sarout)
-    data = sarout.split('\n')[-2].split()
-    # remove 'Average:'
+
+    # Initialize return data
+    ret_column= []
+    ret_data= []
+
+    # Split and remove empty lines
+    # Return if result is empty
+    lines = [l for l in sarout.split('\n') if l]
+    if len(lines) < 2:
+        return (ret_column, ret_data)
+
+    # First line contains uname info
+    # Second line contains columns
+    # The last line the average data
+    column = lines[1].split()
+    data = lines[-1].split()
+    # Remove first element (e.g. Average or timestamp)
+    column.pop(0)
     data.pop(0)
-    # debug
-    # print(data)
-    columns = sarout.split('\n')[-4].split()
-    # Remove Timestamp - 16:13:16
-    columns.pop(0)
-    # timestamp is posix, so no AM or PM
-    # debug
-    # print(columns)
-    return (columns, data)
+
+    ret_column = column
+    ret_data = data
+
+    return (ret_column, ret_data)
 
 
 def sort_combined_output(sarout, device):
@@ -183,17 +192,21 @@ def sort_combined_output(sarout, device):
     Sorts column and data output from combined report and displays
     only relevant information returns column and data tuple
     '''
-    lines = [l for l in sarout.split('\n') if l.startswith('Average:')]
-    columns = lines[0]
-    data = lines[1:]
-
-    # Find the only Average line with the device we are looking for
-    search = re.compile(f'^Average:\\s+.*{device}\\s*.*')
-    lines_dev = [l for l in data if search.match(l)]
-
     # Initialize return data
     ret_column= []
     ret_data= []
+
+    # Split and remove empty lines
+    # Return if result is empty
+    lines = [l for l in sarout.split('\n') if l]
+    if len(lines) < 2:
+        return (ret_column, ret_data)
+
+    # First line contains uname info
+    # Second line contains columns
+    columns = lines[1]
+    # Find the only Average line with the device we are looking for
+    lines_dev = [l for l in lines if l.startswith("Average:") and device in l]
 
     if columns:
         ret_column = columns.split()
