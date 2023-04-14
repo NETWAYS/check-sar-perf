@@ -111,5 +111,21 @@ class SarNRPETest(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    @mock.patch('check_sar_perf.subprocess.Popen')
+    def test_disk(self, mock_popen):
+
+        # Prepare mocked subprocess object
+        m = mock.Mock()
+        m.communicate.return_value=(fixture_sar_disk.encode(), b'error')
+        mock_popen.return_value.__enter__.return_value = m
+
+        # Get actual data from Object
+        s = SarNRPE("unittest")
+        actual = s.stats
+
+        expected = ['tps=0.00', 'rkBs=0.00', 'wkBs=0.00', 'areq-sz=0.00', 'aqu-sz=0.00', 'await=0.00', 'svctm=0.00', 'util=0.00']
+
+        self.assertEqual(actual, expected)
+
 if __name__ == '__main__':
     unittest.main()

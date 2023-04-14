@@ -39,7 +39,6 @@ try:
     import argparse
     import os
     import sys
-    import re
     import subprocess
 # pylint: disable=broad-exception-caught
 except Exception as import_error: # pragma: no cover
@@ -128,22 +127,13 @@ class SarNRPE:
         '''
         Construct nrpe format performance data
         '''
-        search = re.compile('^[a-zA-Z]+$')
-        # Create dictionary
         for (idx, element) in enumerate(columns):
-            # debug
-            # print(columns[i], ": ", data[i])
-            # Remove first column if data contains only letters
-            if idx != 0 or not search.match(data[idx]):
-                # Remove characters that cause issues (%/)
-                badchars = ['%', '/']
-                columns[idx] = ''.join(j for j in element if j not in badchars)
-                string = element.strip('%/') + "=" + data[idx].strip()
-                # ==debug
-                # print(string)
-                self.stats.append(string)
-                # debug
-                # print("Appended data: ", data[i])
+            # Remove data contains only letters
+            if data[idx].isalpha():
+                continue
+            # Remove characters not allowed in perfdata
+            key = element.replace("%", "").replace("/", "")
+            self.stats.append(key + "=" + data[idx].strip())
 
 
 def check_bin(program):
