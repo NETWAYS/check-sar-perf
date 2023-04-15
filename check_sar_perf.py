@@ -223,7 +223,7 @@ def main(args):
     return ERR_OK
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     try:
         sys.exit(main(sys.argv))
     except Exception:
