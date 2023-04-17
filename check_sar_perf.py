@@ -77,6 +77,7 @@ PROFILES = {
     'task': 'sar -w 1 1',
     'kernel': 'sar -v 1 1',
     'disk': 'sar -d -p 1 1',
+    'custom': None,
 }
 
 def commandline(arguments):
@@ -96,8 +97,14 @@ def commandline(arguments):
                         nargs=1)
 
     parser.add_argument('-d', '--device',
+                        type=str,
                         help='Name of the device if the disk profile is selected.',
                         required='disk' in arguments)
+
+    parser.add_argument('-c', '--cmd',
+                        type=str,
+                        help='Custom sar command to execude. Use as own risk.',
+                        required='custom' in arguments)
 
     return parser.parse_args(arguments)
 
@@ -222,6 +229,8 @@ def main(args):
     try:
         if args.profile == 'disk':
             sar = SarNRPE(PROFILES[args.profile], args.device)
+        elif args.profile == 'custom':
+            sar = SarNRPE(args.cmd)
         else:
             sar = SarNRPE(PROFILES[args.profile])
     except Exception as sar_error:

@@ -156,6 +156,11 @@ class MainTest(unittest.TestCase):
         expected = 3
         self.assertEqual(actual, expected)
 
+        args = commandline(['custom', '-c', 'sar 1 1'])
+        actual = main(args)
+        expected = 3
+        self.assertEqual(actual, expected)
+
     @mock.patch('builtins.print')
     @mock.patch('check_sar_perf.SarNRPE')
     @mock.patch('check_sar_perf.check_bin')
