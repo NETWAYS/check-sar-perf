@@ -34,14 +34,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import sys
-import re
-import subprocess
-import traceback
+# Safe import for adding sys.exit
+try:
+    import argparse
+    import os
+    import sys
+    import subprocess
+# pylint: disable=broad-exception-caught
+except Exception as import_error: # pragma: no cover
+    print(f"UNKNOWN: Failure during import. {import_error}")
+    # pylint: disable=consider-using-sys-exit
+    exit(3)
 
-
-os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin'
 # Nagios return code level
 # 0 - OK       - The plugin was able to check the service and it appeared to be functioning properly
 # 1 - WARNING  - The plugin was able to check the service, but it appeared to be above some "warning"
@@ -57,19 +61,52 @@ ERR_WARN = 1
 ERR_CRIT = 2
 ERR_UNKN = 3
 
-DESCRIPTION = """
-check_sar_perf.py
-This plugin reads output from sar (sysstat), checks it against thresholds
-and reports the results (including perfdata)
-"""
+__version__ = '0.1.0'
 
 
-def usage():
-    '''
-    Just print usage
-    '''
-    print(DESCRIPTION)
-    return ERR_UNKN
+# Profiles may need to be modified for different versions of the sysstat package
+# This would be a good candidate for a config file
+PROFILES = {
+    'pagestat': 'sar -B 1 1',
+    'cpu': 'sar 1 1',
+    'memory_util': 'sar -r 1 1',
+    'io_transfer': 'sar -b 1 1',
+    'queueln_load': 'sar -q 1 1',
+    'swap_util': 'sar -S 1 1',
+    'swap_stat': 'sar -W 1 1',
+    'task': 'sar -w 1 1',
+    'kernel': 'sar -v 1 1',
+    'disk': 'sar -d -p 1 1',
+    'custom': None,
+}
+
+def commandline(arguments):
+    """
+    Command Line Interface Function for easier testing
+    """
+    parser = argparse.ArgumentParser(description="This plugin reads output from sar (sysstat), checks it against thresholds and reports the results (including perfdata)")
+
+    parser.add_argument('-V', '--version',
+                        action='version',
+                        version='%(prog)s v' + __version__)
+
+    parser.add_argument('profile',
+                        choices=PROFILES.keys(),
+                        type=str,
+                        help='sar Profile to execute for the check.',
+                        nargs=1)
+
+    parser.add_argument('-d', '--device',
+                        type=str,
+                        help='Name of the device if the disk profile is selected.',
+                        required='disk' in arguments)
+
+    parser.add_argument('-c', '--cmd',
+                        type=str,
+                        help='Custom sar command to execude. Use as own risk.',
+                        required='custom' in arguments)
+
+    return parser.parse_args(arguments)
 
 
 class SarNRPE:
@@ -78,41 +115,32 @@ class SarNRPE:
     '''
     def __init__(self, command, device=None):
         # tell sar to use the posix time formatting to stay safe
+        self.stats = []
+
         command = 'LC_TIME="POSIX" ' + command
         with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as sar:
             (sout, _) = sar.communicate()
             sout = sout.decode()
-        # == debug
-        # print(sout)
-        # print("Type: " + str(type(sout)))
-        if device is None:
-            (columns, data) = sort_output(sout)
-        else:
-            (columns, data) = sort_combined_output(sout, device)
 
-        self.formatter(columns, data)
+        if device:
+            (columns, data) = sort_combined_output(sout, device)
+        else:
+            (columns, data) = sort_output(sout)
+
+        if data:
+            self.formatter(columns, data)
 
     def formatter(self, columns, data):
         '''
         Construct nrpe format performance data
         '''
-        search = re.compile('^[a-zA-Z]+$')
-        self.stats = []
-        # Create dictionary
         for (idx, element) in enumerate(columns):
-            # debug
-            # print(columns[i], ": ", data[i])
-            # Remove first column if data contains only letters
-            if idx != 0 or not search.match(data[idx]):
-                # Remove characters that cause issues (%/)
-                badchars = ['%', '/']
-                columns[idx] = ''.join(j for j in element if j not in badchars)
-                string = element.strip('%/') + "=" + data[idx].strip()
-                # ==debug
-                # print(string)
-                self.stats.append(string)
-                # debug
-                # print("Appended data: ", data[i])
+            # Remove data contains only letters
+            if data[idx].isalpha():
+                continue
+            # Remove characters not allowed in perfdata
+            key = element.replace("%", "").replace("/", "")
+            self.stats.append(key + "=" + data[idx].strip())
 
 
 def check_bin(program):
@@ -130,19 +158,30 @@ def sort_output(sarout):
     '''
     Sort output of sar command, return column and data tuple
     '''
-    # print(sarout)
-    data = sarout.split('\n')[-2].split()
-    # remove 'Average:'
+
+    # Initialize return data
+    ret_column= []
+    ret_data= []
+
+    # Split and remove empty lines
+    # Return if result is empty
+    lines = [l for l in sarout.split('\n') if l]
+    if len(lines) < 2:
+        return (ret_column, ret_data)
+
+    # First line contains uname info
+    # Second line contains columns
+    # The last line the average data
+    column = lines[1].split()
+    data = lines[-1].split()
+    # Remove first element (e.g. Average or timestamp)
+    column.pop(0)
     data.pop(0)
-    # debug
-    # print(data)
-    columns = sarout.split('\n')[-4].split()
-    # Remove Timestamp - 16:13:16
-    columns.pop(0)
-    # timestamp is posix, so no AM or PM
-    # debug
-    # print(columns)
-    return (columns, data)
+
+    ret_column = column
+    ret_data = data
+
+    return (ret_column, ret_data)
 
 
 def sort_combined_output(sarout, device):
@@ -150,84 +189,67 @@ def sort_combined_output(sarout, device):
     Sorts column and data output from combined report and displays
     only relevant information returns column and data tuple
     '''
+    # Initialize return data
+    ret_column= []
+    ret_data= []
 
-    find_columns = True
-    mycolumns = []
-    mydata = []
-    # Find the column titles
-    search = re.compile('^Average:')
-    for line in sarout.split('\n'):
-        if search.match(line):
-            if find_columns:
-                mycolumns.append(line)
-                find_columns = False
-            else:
-                mydata.append(line)
+    # Split and remove empty lines
+    # Return if result is empty
+    lines = [l for l in sarout.split('\n') if l]
+    if len(lines) < 2:
+        return (ret_column, ret_data)
+
+    # First line contains uname info
+    # Second line contains columns
+    columns = lines[1]
     # Find the only Average line with the device we are looking for
-    search_string = f'^Average:\\s+.*{device}\\s*.*'
-    search = re.compile(search_string)
-    for line in mydata[:]:
-        if not search.match(line):
-            mydata.remove(line)
-    mycolumns = mycolumns[0].split()
-    mydata = mydata[0].split()
-    mycolumns.pop(0)
-    mydata.pop(0)
-    return (mycolumns, mydata)
+    lines_dev = [l for l in lines if l.startswith("Average:") and device in l]
+
+    if columns:
+        ret_column = columns.split()
+        ret_column.pop(0)
+    if lines_dev:
+        ret_data = lines_dev[0].split()
+        ret_data.pop(0)
+
+    return (ret_column, ret_data)
 
 
 def main(args):
     """
-    Main function, execute checks, fetch data and so on.
-    Maybe just integrate this in the starter function
+    Main function
     """
-    # Ensure a profile (aka my_opts) is selected
-    if len(args) <= 1:
-        print('ERROR: no profile selected')
-        return usage()
     if not check_bin('sar'):
-        print(f"ERROR: sar not found on PATH ({os.environ['PATH']}), install sysstat")
+        print(f"ERROR: sar not found in $PATH ({os.environ['PATH']}), please install sysstat.")
         return ERR_CRIT
 
-    # Profiles may need to be modified for different versions of the sysstat package
-    # This would be a good candidate for a config file
-    my_opts = {}
-    my_opts['pagestat'] = 'sar -B 1 1'
-    my_opts['cpu'] = 'sar 1 1'
-    my_opts['memory_util'] = 'sar -r 1 1'
-    my_opts['io_transfer'] = 'sar -b 1 1'
-    my_opts['queueln_load'] = 'sar -q 1 1'
-    my_opts['swap_util'] = 'sar -S 1 1'
-    my_opts['swap_stat'] = 'sar -W 1 1'
-    my_opts['task'] = 'sar -w 1 1'
-    my_opts['kernel'] = 'sar -v 1 1'
-    my_opts['disk'] = 'sar -d -p 1 1'
+    # Positional args are a list
+    args.profile = args.profile[0]
 
-    # If profile uses combined output you must pick one device to report on ie sda for disk
-    if args[1] in my_opts:
-        if args[1] == 'disk':
-            if len(args) > 2:
-                sar = SarNRPE(my_opts[args[1]], args[2])
-            else:
-                print('ERROR: no device specified')
-                return ERR_UNKN
+    try:
+        if args.profile == 'disk':
+            sar = SarNRPE(PROFILES[args.profile], args.device)
+        elif args.profile == 'custom':
+            sar = SarNRPE(args.cmd)
         else:
-            sar = SarNRPE(my_opts[args[1]])
-    else:
-        print('ERROR: option not defined')
+            sar = SarNRPE(PROFILES[args.profile])
+    except Exception as sar_error:
+        print(f"UNKNOWN: Error running sar. {sar_error}")
         return ERR_UNKN
 
     # Output in NRPE format
-    print('sar OK |', ' '.join(sar.stats))
+    if sar.stats:
+        print('OK: sar |', ' '.join(sar.stats))
+        return ERR_OK
 
-    return ERR_OK
+    print("UNKNOWN: Could not determine sar perfdata.")
+    return ERR_UNKN
 
 
 if __name__ == '__main__': # pragma: no cover
     try:
-        sys.exit(main(sys.argv))
-    except Exception:
-        traceback.print_exc()
-        print(sys.exc_info())
-        print('Unexpected Error')
+        ARGS = commandline(sys.argv[1:])
+        sys.exit(main(ARGS))
+    except Exception as main_error:
+        print(f"UNKNOWN: Error running main(). {main_error}")
         sys.exit(ERR_UNKN)
